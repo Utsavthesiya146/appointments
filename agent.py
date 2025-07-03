@@ -235,3 +235,5 @@ workflow.add_node("book_appointment", handle_appointment_booking)
 workflow.add_edge("parse_intent", "book_appointment")
 workflow.set_entry_point("parse_intent")
 appointment_agent = workflow.compile()
+# At the end of agent.py
+__all__ = ['appointment_agent']  # Explicitly expose the agent
