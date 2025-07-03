@@ -32,7 +32,14 @@
 
 
 
-
+import sys
+print(sys.path)  # Check Python path
+print(__file__)  # Verify file location
+try:
+    from agent import appointment_agent
+except ImportError as e:
+    print(f"Import failed: {e}")
+    raise
 import streamlit as st
 from langchain_core.messages import HumanMessage
 from agent import appointment_agent
