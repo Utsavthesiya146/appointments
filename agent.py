@@ -207,6 +207,29 @@ def handle_appointment_booking(state: AgentState):
         }
 
 workflow = Graph()
+# Add nodes with proper data formatting
+workflow.add_node(
+    "parse_intent",
+    {
+        "runnable": parse_intent,
+        "name": "Parse Intent"
+    }
+)
+
+workflow.add_node(
+    "book_appointment",
+    {
+        "runnable": handle_appointment_booking,
+        "name": "Book Appointment"
+    }
+)
+
+# Set entry point
+workflow.set_entry_point("parse_intent")
+
+# Compile the workflow
+appointment_agent = workflow.compile()
+
 workflow.add_node("parse_intent", parse_intent)
 workflow.add_node("book_appointment", handle_appointment_booking)
 workflow.add_edge("parse_intent", "book_appointment")
