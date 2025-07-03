@@ -8,111 +8,74 @@ import json
 import os
 import logging
 
-# Configure backend URL
+# Configuration
 BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:8000")
+CALENDAR_ID = os.getenv("CALENDAR_ID", "primary")
+logging.basicConfig(level=logging.INFO)
 
 class AgentState(TypedDict):
     messages: Annotated[Sequence[HumanMessage], lambda x, y: x + y]
     user_intent: str
     appointment_details: dict
 
-llm = ChatGoogleGenerativeAI(model="gemini-pro")
+def create_appointment_agent():
+    llm = ChatGoogleGenerativeAI(model="gemini-pro")
 
-def parse_intent(state: AgentState):
-    last_message = state["messages"][-1].content
-    response = llm.invoke(f"""
-    Analyze the following user message to determine intent:
-    Message: "{last_message}"
-    
-    Possible intents:
-    - book_appointment
-    - check_availability
-    - cancel_appointment
-    - general_query
-    
-    Respond ONLY with the intent name.
-    """)
-    return {"user_intent": response.content.strip()}
+    def parse_intent(state: AgentState):
+        last_message = state["messages"][-1].content
+        response = llm.invoke(f"""Analyze: "{last_message}"\nRespond with: book_appointment|check_availability|cancel_appointment|general_query""")
+        return {"user_intent": response.content.strip()}
 
-def handle_appointment_booking(state: AgentState):
-    last_message = state["messages"][-1].content
-    response = llm.invoke(f"""
-    Extract appointment details from this message:
-    "{last_message}"
-    
-    Return as JSON with these fields:
-    - summary (string): Meeting title/subject
-    - duration (number): Duration in minutes
-    - date (string): Preferred date in YYYY-MM-DD format
-    - time (string): Preferred start time in HH:MM format
-    - attendee_email (string): Attendee email if mentioned
-    """)
-    
-    try:
-        details = json.loads(response.content)
-        details["attendee_email"] = details.get("attendee_email", "user@example.com")
-        
-        # Calculate end time
-        start_time = datetime.strptime(f"{details['date']} {details['time']}", "%Y-%m-%d %H:%M")
-        end_time = start_time + timedelta(minutes=details["duration"])
-        
-        # Check availability
-        availability = requests.get(
-            f"{BACKEND_URL}/check_availability",
-            params={
-                "start_time": start_time.isoformat(),
-                "end_time": end_time.isoformat()
-            }
-        ).json()
-        
-        if availability["available"]:
-            # Book appointment
-            booking = requests.post(
-                f"{BACKEND_URL}/create_event",
-                json={
-                    "start_time": start_time.isoformat(),
-                    "end_time": end_time.isoformat(),
-                    "summary": details["summary"],
-                    "attendee_email": details["attendee_email"]
-                }
-            ).json()
+    def handle_booking(state: AgentState):
+        try:
+            last_message = state["messages"][-1].content
+            response = llm.invoke(f"""Extract from: "{last_message}"\nReturn JSON with: summary, duration (minutes), date (YYYY-MM-DD), time (HH:MM), attendee_email""")
+            details = json.loads(response.content)
+            details.setdefault("attendee_email", "user@example.com")
             
+            start_time = datetime.strptime(f"{details['date']} {details['time']}", "%Y-%m-%d %H:%M")
+            end_time = start_time + timedelta(minutes=details["duration"])
+            
+            # Check availability
+            available = requests.get(
+                f"{BACKEND_URL}/check_availability",
+                params={"start_time": start_time.isoformat(), "end_time": end_time.isoformat()}
+            ).json().get("available", False)
+            
+            if available:
+                booking = requests.post(
+                    f"{BACKEND_URL}/create_event",
+                    json={
+                        "start_time": start_time.isoformat(),
+                        "end_time": end_time.isoformat(),
+                        "summary": details["summary"],
+                        "attendee_email": details["attendee_email"]
+                    }
+                ).json()
+                return {
+                    "messages": [HumanMessage(content=f"✅ Booked! Join: {booking.get('meet_link', '')}")],
+                    "appointment_details": details
+                }
+            else:
+                new_time = start_time + timedelta(hours=1)
+                return {
+                    "messages": [HumanMessage(content=f"⏳ Slot taken. Try {new_time.strftime('%Y-%m-%d %H:%M')}?")],
+                    "appointment_details": details
+                }
+        except Exception as e:
+            logging.error(f"Booking error: {str(e)}")
             return {
-                "messages": [HumanMessage(
-                    content=f"Appointment booked! Meet link: {booking['meet_link']}"
-                )],
-                "appointment_details": details
+                "messages": [HumanMessage(content="⚠️ Error processing request. Please try again.")],
+                "appointment_details": {}
             }
-        else:
-            # Suggest alternatives
-            new_time = start_time + timedelta(hours=1)
-            return {
-                "messages": [HumanMessage(
-                    content=f"Sorry, that slot is booked. How about {new_time.strftime('%Y-%m-%d %H:%M')}?"
-                )],
-                "appointment_details": details
-            }
-    except Exception as e:
-        logging.error(f"Error in booking: {str(e)}")
-        return {
-            "messages": [HumanMessage(
-                content="Sorry, I encountered an error processing your request. Please try again."
-            )],
-            "appointment_details": {}
-        }
 
-# Initialize workflow
-workflow = Graph()
+    # Build workflow
+    workflow = Graph()
+    workflow.add_node("parse_intent", parse_intent)
+    workflow.add_node("book_appointment", handle_booking)
+    workflow.add_edge("parse_intent", "book_appointment")
+    workflow.set_entry_point("parse_intent")
+    
+    return workflow.compile()
 
-# Add nodes
-workflow.add_node("parse_intent", parse_intent)
-workflow.add_node("book_appointment", handle_appointment_booking)
-
-# Connect nodes
-workflow.add_edge("parse_intent", "book_appointment")
-
-# Set entry point
-workflow.set_entry_point("parse_intent")
-
-# Compile the agent
-appointment_agent = workflow.compile()
+appointment_agent = create_appointment_agent()
