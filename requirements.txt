@@ -1,0 +1,7 @@
+streamlit
+fastapi
+python-dotenv
+google-api-python-client
+langchain-google-genai
+uvicorn
+requests
