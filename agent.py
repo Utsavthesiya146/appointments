@@ -1,4 +1,10 @@
-from langchain_core.runnables import Graph
+from langgraph.graph import StateGraph
+
+graph = StateGraph()
+
+# from langchain_core.runnables import Graph
+# define nodes, edges, etc.
+
 from langchain_core.messages import HumanMessage
 from langchain_google_genai import ChatGoogleGenerativeAI
 from typing import TypedDict, Annotated, Sequence
@@ -70,7 +76,7 @@ def create_appointment_agent():
             }
 
     # Build workflow
-    workflow = Graph()
+    workflow = StateGraph()
     workflow.add_node("parse_intent", parse_intent)
     workflow.add_node("book_appointment", handle_booking)
     workflow.add_edge("parse_intent", "book_appointment")
