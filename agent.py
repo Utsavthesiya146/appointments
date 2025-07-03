@@ -1,4 +1,4 @@
-from langchain_core.runnables.graph import Graph
+from langchain_core.runnables import Graph
 from langchain_core.messages import HumanMessage
 from langchain_google_genai import ChatGoogleGenerativeAI
 from typing import TypedDict, Annotated, Sequence
@@ -101,12 +101,18 @@ def handle_appointment_booking(state: AgentState):
             "appointment_details": {}
         }
 
-# Initialize and configure the workflow
-appointment_agent = (
-    Graph()
-    .add_node(name="parse_intent", action=parse_intent)
-    .add_node(name="book_appointment", action=handle_appointment_booking)
-    .add_edge(start="parse_intent", end="book_appointment")
-    .set_entry_point("parse_intent")
-    .compile()
-)
+# Initialize workflow
+workflow = Graph()
+
+# Add nodes
+workflow.add_node("parse_intent", parse_intent)
+workflow.add_node("book_appointment", handle_appointment_booking)
+
+# Connect nodes
+workflow.add_edge("parse_intent", "book_appointment")
+
+# Set entry point
+workflow.set_entry_point("parse_intent")
+
+# Compile the agent
+appointment_agent = workflow.compile()

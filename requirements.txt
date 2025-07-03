@@ -1,10 +1,4 @@
-streamlit
-fastapi
-python-dotenv
-google-api-python-client
-langchain-google-genai
-uvicorn
-requests
+streamlit>=1.33.0
 langchain-core==0.2.0
 langchain-google-genai==0.1.0
 google-api-python-client==2.120.0
