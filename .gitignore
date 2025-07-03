@@ -1,3 +1,31 @@
+# Google સર્વિસ એકાઉન્ટ ક્રેડેન્શિયલ્સ
+service-account.json
+
+# API કીઝ અને એન્વાયર્નમેન્ટ વેરીએબલ્સ
+.env
+
+# Python કૅશ ફાઇલ્સ
+__pycache__/
+
+# વર્ચ્યુઅલ એન્વાયર્નમેન્ટ
+venv/
+
+# Python
+__pycache__/
+*.pyc
+
+# Environment
+.env
+service_account.json
+
+# IDE
+.idea/
+.vscode/
+
+# Other
+/new/
+
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]
