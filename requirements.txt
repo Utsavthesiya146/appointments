@@ -5,3 +5,8 @@ google-api-python-client
 langchain-google-genai
 uvicorn
 requests
+langchain-core==0.2.0
+langchain-google-genai==0.1.0
+google-api-python-client==2.120.0
+python-dotenv==1.0.0
+requests==2.31.0
